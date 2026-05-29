@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 export default function WaitingRoom({ gameState, socket, roomCode, playerId, playerName }) {
   const [copied, setCopied] = useState(false);
-  const isHost = gameState?.hostId === playerId;
+  const isHost = gameState?.hostPlayerId === playerId;
   const players = gameState?.players || [];
 
   const copyCode = () => {
@@ -83,14 +83,14 @@ export default function WaitingRoom({ gameState, socket, roomCode, playerId, pla
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {players.map((p, i) => (
-              <div key={p.id} style={{
+              <div key={p.playerId} style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 12,
                 padding: '10px 14px',
                 background: '#0d1520',
                 borderRadius: 10,
-                border: p.id === playerId ? '1px solid rgba(201,168,76,0.3)' : '1px solid transparent',
+                border: p.playerId === playerId ? '1px solid rgba(201,168,76,0.3)' : '1px solid transparent',
               }}>
                 <div style={{
                   width: 32,
@@ -108,10 +108,10 @@ export default function WaitingRoom({ gameState, socket, roomCode, playerId, pla
                   {p.name[0].toUpperCase()}
                 </div>
                 <span style={{ flex: 1, fontSize: 15, color: '#e8e0d4' }}>{p.name}</span>
-                {gameState.hostId === p.id && (
+                {gameState.hostPlayerId === p.id && (
                   <span style={{ fontSize: 10, color: '#c9a84c', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Host</span>
                 )}
-                {p.id === playerId && (
+                {p.playerId === playerId && (
                   <span style={{ fontSize: 10, color: '#4caf88', letterSpacing: '0.08em', textTransform: 'uppercase' }}>You</span>
                 )}
               </div>

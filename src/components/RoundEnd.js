@@ -2,7 +2,7 @@ import React from 'react';
 import Card from './Card';
 
 export default function RoundEnd({ gameState, socket, roomCode, playerId }) {
-  const isHost = gameState?.hostId === playerId;
+  const isHost = gameState?.hostPlayerId === playerId;
   const scores = gameState?.roundScores || [];
   const winner = scores.find(s => s.playerName === gameState.winnerName);
 
