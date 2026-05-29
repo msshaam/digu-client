@@ -90,7 +90,7 @@ export default function Lobby({ socket, onJoined }) {
           <p style={{ color: '#8a9bb5', marginTop: 8, fontSize: 14, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
             Gin Rummy — Maldives Edition
           </p>
-          <p style={{ color: '#3a4a65', marginTop: 6, fontSize: 11, letterSpacing: '0.08em' }}>v1.5</p>
+          <p style={{ color: '#3a4a65', marginTop: 6, fontSize: 11, letterSpacing: '0.08em' }}>v1.7</p>
         </div>
 
         {/* Mode: null — just two buttons */}

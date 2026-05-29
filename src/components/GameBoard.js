@@ -2,17 +2,20 @@ import React, { useState, useEffect, useRef } from 'react';
 import Card from './Card';
 import { canDeclareDigu } from '../utils/meldCheck';
 
-// Arc layout: spread cards in a fan/arc with proper horizontal spacing
-function getArcTransform(index, total, selected) {
+// Arc layout: responsive to screen width
+function getArcTransform(index, total, selected, containerWidth) {
   if (total === 0) return {};
-  const cardSpacing = Math.min(72, Math.max(44, 600 / total)); // px between card centers
+  const usableWidth = (containerWidth || window.innerWidth) - 80; // 40px padding each side
+  const cardWidth = 64;
+  // Max spacing so all cards fit within usable width
+  const maxSpacing = total > 1 ? Math.floor((usableWidth - cardWidth) / (total - 1)) : 0;
+  const cardSpacing = Math.min(68, Math.max(28, maxSpacing));
   const totalWidth = cardSpacing * (total - 1);
   const xCenter = index * cardSpacing - totalWidth / 2;
-  const maxAngle = Math.min(35, total * 3.5);
+  const maxAngle = Math.min(30, total * 2.8);
   const angleStep = total > 1 ? (maxAngle * 2) / (total - 1) : 0;
   const angle = -maxAngle + index * angleStep;
-  // Arc curve: cards at edges dip down slightly
-  const arcDip = Math.pow((index - (total - 1) / 2) / Math.max(total / 2, 1), 2) * 18;
+  const arcDip = Math.pow((index - (total - 1) / 2) / Math.max(total / 2, 1), 2) * 14;
   const liftY = selected ? -20 : 0;
   return {
     transform: `translateX(${xCenter}px) translateY(${arcDip + liftY}px) rotate(${angle}deg)`,
@@ -27,6 +30,7 @@ export default function GameBoard({ gameState, socket, roomCode, playerId }) {
   const [handOrder, setHandOrder] = useState([]);
   const [dragIndex, setDragIndex] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
+  const arcRef = useRef(null);
 
   const players = gameState?.players || [];
   const myPlayerData = players.find(p => p.playerId === playerId);
@@ -146,7 +150,7 @@ export default function GameBoard({ gameState, socket, roomCode, playerId }) {
       display: 'flex',
       flexDirection: 'column',
       padding: '12px 16px 0',
-      gap: 10,
+      gap: 6,
       overflow: 'hidden',
     }}>
       {/* Top bar */}
@@ -186,7 +190,7 @@ export default function GameBoard({ gameState, socket, roomCode, playerId }) {
       {/* Center table */}
       <div style={{
         background: 'linear-gradient(145deg, #0d1b33 0%, #0a1525 100%)',
-        border: '1px solid #1e2d45', borderRadius: 16, padding: '16px 20px',
+        border: '1px solid #1e2d45', borderRadius: 16, padding: '10px 20px',
         display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 28, flexShrink: 0,
       }}>
         {/* Deck */}
@@ -243,18 +247,19 @@ export default function GameBoard({ gameState, socket, roomCode, playerId }) {
         </div>
 
         {/* Arc container */}
-        <div style={{
+        <div ref={arcRef} style={{
           position: 'relative',
           height: 180,
           display: 'flex',
           alignItems: 'flex-end',
           justifyContent: 'center',
           paddingBottom: 20,
-          overflowX: 'visible',
+          overflowX: 'hidden',
           flexShrink: 0,
+          width: '100%',
         }}>
           {displayHand.map((card, i) => {
-            const arcStyle = getArcTransform(i, total, selectedCard === card.id);
+            const arcStyle = getArcTransform(i, total, selectedCard === card.id, arcRef.current?.offsetWidth);
             const isDragging = dragIndex === i;
             const isNew = drawnCard && card.id === drawnCard.id;
             return (
