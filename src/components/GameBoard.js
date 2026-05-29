@@ -3,19 +3,31 @@ import Card from './Card';
 import { canDeclareDigu } from '../utils/meldCheck';
 
 // Arc layout: responsive to screen width
+// cardWidth=64, cardHeight=90. A rotated card's corner extends beyond its center.
+// We account for diagonal so edge cards don't clip.
 function getArcTransform(index, total, selected, containerWidth) {
   if (total === 0) return {};
-  const usableWidth = (containerWidth || window.innerWidth) - 80; // 40px padding each side
-  const cardWidth = 64;
-  // Max spacing so all cards fit within usable width
-  const maxSpacing = total > 1 ? Math.floor((usableWidth - cardWidth) / (total - 1)) : 0;
-  const cardSpacing = Math.min(68, Math.max(28, maxSpacing));
+  const cardW = 64;
+  const cardH = 90;
+  const cardDiag = Math.sqrt(cardW * cardW + cardH * cardH) / 2; // ~55px
+  const maxAngle = Math.min(28, total * 2.5);
+
+  // Effective half-width of edge card after rotation
+  const edgeAngle = maxAngle * Math.PI / 180;
+  const edgeHalf = cardDiag * Math.abs(Math.sin(edgeAngle + Math.PI / 4)); // conservative estimate
+
+  // Usable spread width: container minus padding minus both edge card overhangs
+  const usable = (containerWidth || window.innerWidth) - 32 - edgeHalf * 2;
+
+  // Spacing between card centers — must fit all cards in usable width
+  const maxSpacing = total > 1 ? usable / (total - 1) : 0;
+  const cardSpacing = Math.min(64, Math.max(18, maxSpacing));
+
   const totalWidth = cardSpacing * (total - 1);
   const xCenter = index * cardSpacing - totalWidth / 2;
-  const maxAngle = Math.min(30, total * 2.8);
   const angleStep = total > 1 ? (maxAngle * 2) / (total - 1) : 0;
   const angle = -maxAngle + index * angleStep;
-  const arcDip = Math.pow((index - (total - 1) / 2) / Math.max(total / 2, 1), 2) * 14;
+  const arcDip = Math.pow((index - (total - 1) / 2) / Math.max(total / 2, 1), 2) * 12;
   const liftY = selected ? -20 : 0;
   return {
     transform: `translateX(${xCenter}px) translateY(${arcDip + liftY}px) rotate(${angle}deg)`,
@@ -31,6 +43,18 @@ export default function GameBoard({ gameState, socket, roomCode, playerId }) {
   const [dragIndex, setDragIndex] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
   const arcRef = useRef(null);
+  const [arcWidth, setArcWidth] = useState(window.innerWidth);
+
+  // Update arc width on mount and resize
+  useEffect(() => {
+    const update = () => {
+      if (arcRef.current) setArcWidth(arcRef.current.offsetWidth);
+      else setArcWidth(window.innerWidth);
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
 
   const players = gameState?.players || [];
   const myPlayerData = players.find(p => p.playerId === playerId);
@@ -66,6 +90,11 @@ export default function GameBoard({ gameState, socket, roomCode, playerId }) {
     reordered.splice(dragOverIndex, 0, dragged);
     return reordered;
   })();
+
+  // Update arc width when card count changes (e.g. 11th card drawn)
+  useEffect(() => {
+    if (arcRef.current) setArcWidth(arcRef.current.offsetWidth);
+  }, [displayHand.length]); // eslint-disable-line
 
   const diguPossible = (() => {
     if (!isMyTurn || turnPhase !== 'discard' || !selectedCard) return false;
@@ -259,7 +288,7 @@ export default function GameBoard({ gameState, socket, roomCode, playerId }) {
           width: '100%',
         }}>
           {displayHand.map((card, i) => {
-            const arcStyle = getArcTransform(i, total, selectedCard === card.id, arcRef.current?.offsetWidth);
+            const arcStyle = getArcTransform(i, total, selectedCard === card.id, arcWidth);
             const isDragging = dragIndex === i;
             const isNew = drawnCard && card.id === drawnCard.id;
             return (
