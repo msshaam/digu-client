@@ -2,19 +2,20 @@ import React, { useState, useEffect, useRef } from 'react';
 import Card from './Card';
 import { canDeclareDigu } from '../utils/meldCheck';
 
-// Arc layout: spread cards in a fan/arc
+// Arc layout: spread cards in a fan/arc with proper horizontal spacing
 function getArcTransform(index, total, selected) {
   if (total === 0) return {};
-  const maxAngle = Math.min(40, total * 4);
+  const cardSpacing = Math.min(72, Math.max(44, 600 / total)); // px between card centers
+  const totalWidth = cardSpacing * (total - 1);
+  const xCenter = index * cardSpacing - totalWidth / 2;
+  const maxAngle = Math.min(35, total * 3.5);
   const angleStep = total > 1 ? (maxAngle * 2) / (total - 1) : 0;
   const angle = -maxAngle + index * angleStep;
-  const radius = 320;
-  const rad = (angle * Math.PI) / 180;
-  const x = Math.sin(rad) * radius * 0.18;
-  const y = (1 - Math.cos(rad)) * radius * 0.18;
-  const liftY = selected ? -18 : 0;
+  // Arc curve: cards at edges dip down slightly
+  const arcDip = Math.pow((index - (total - 1) / 2) / Math.max(total / 2, 1), 2) * 18;
+  const liftY = selected ? -20 : 0;
   return {
-    transform: `translateX(${x}px) translateY(${y + liftY}px) rotate(${angle}deg)`,
+    transform: `translateX(${xCenter}px) translateY(${arcDip + liftY}px) rotate(${angle}deg)`,
     zIndex: selected ? total + 10 : index,
   };
 }
@@ -244,11 +245,12 @@ export default function GameBoard({ gameState, socket, roomCode, playerId }) {
         {/* Arc container */}
         <div style={{
           position: 'relative',
-          height: 160,
+          height: 180,
           display: 'flex',
           alignItems: 'flex-end',
           justifyContent: 'center',
           paddingBottom: 20,
+          overflowX: 'visible',
           flexShrink: 0,
         }}>
           {displayHand.map((card, i) => {
