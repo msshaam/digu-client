@@ -21,6 +21,7 @@ export default function Lobby({ socket, onJoined }) {
   const [iosInstallOpen, setIosInstallOpen] = useState(false);
   const [androidInstallOpen, setAndroidInstallOpen] = useState(false);
   const [hasInstallPrompt, setHasInstallPrompt] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
   const scannerRef = useRef(null);
   const scannerRegionId = 'digu-qr-scanner';
   const deferredInstallPromptRef = useRef(null);
@@ -96,6 +97,24 @@ export default function Lobby({ socket, onJoined }) {
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   }, []);
 
+  useEffect(() => {
+    if (!window.visualViewport) return undefined;
+
+    const updateKeyboardState = () => {
+      const viewport = window.visualViewport;
+      setKeyboardOpen(viewport.height < window.innerHeight - 120);
+    };
+
+    updateKeyboardState();
+    window.visualViewport.addEventListener('resize', updateKeyboardState);
+    window.visualViewport.addEventListener('scroll', updateKeyboardState);
+
+    return () => {
+      window.visualViewport.removeEventListener('resize', updateKeyboardState);
+      window.visualViewport.removeEventListener('scroll', updateKeyboardState);
+    };
+  }, []);
+
   const openInstall = async () => {
     if (canShowIosInstall) {
       setIosInstallOpen(true);
@@ -151,9 +170,10 @@ export default function Lobby({ socket, onJoined }) {
     borderRadius: 999,
     color: '#e8e0d4',
     padding: '12px 16px',
-    fontSize: 16,
+    fontSize: 18,
     width: '100%',
     transition: 'border-color 0.2s',
+    textAlign: 'center',
   };
 
   const btnPrimary = {
@@ -185,13 +205,14 @@ export default function Lobby({ socket, onJoined }) {
     <div style={{
       minHeight: '100vh',
       display: 'flex',
-      alignItems: 'center',
+      alignItems: keyboardOpen ? 'flex-start' : 'center',
       justifyContent: 'center',
-      padding: 24,
+      padding: keyboardOpen ? '20px 24px 32px' : 24,
       background: 'radial-gradient(ellipse at 60% 20%, #1a2a4a 0%, #0a0f1e 70%)',
       textTransform: 'uppercase',
+      overflowY: 'auto',
     }}>
-      <div style={{ width: '100%', maxWidth: 400, paddingBottom: 140 }} className="slide-up">
+      <div style={{ width: '100%', maxWidth: 400, paddingBottom: 140, marginTop: keyboardOpen ? 8 : 0 }} className="slide-up">
 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 48 }}>
@@ -202,7 +223,7 @@ export default function Lobby({ socket, onJoined }) {
           <p style={{ color: '#8a9bb5', marginTop: 8, fontSize: 14, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
             Gin Rummy — Maldives Edition
           </p>
-          <p style={{ color: '#3a4a65', marginTop: 6, fontSize: 11, letterSpacing: '0.08em' }}>v1.7</p>
+          <p style={{ color: '#3a4a65', marginTop: 6, fontSize: 11, letterSpacing: '0.08em' }}>v1.8</p>
         </div>
 
         {/* Mode: null — just two buttons */}
