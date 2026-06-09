@@ -8,6 +8,7 @@ const normalizeRoomCode = (value) => value.trim().toUpperCase();
 const isRoomCode = (value) => /^[A-HJ-NP-Z2-9]{6}$/.test(value);
 const pillButton = { borderRadius: 999 };
 const normalizeName = (value) => value.toUpperCase();
+const getCapturedInstallPrompt = () => window.__diguInstallPrompt || null;
 
 export default function Lobby({ socket, onJoined }) {
   const [name, setName] = useState('');
@@ -20,10 +21,10 @@ export default function Lobby({ socket, onJoined }) {
   const [installDismissed, setInstallDismissed] = useState(false);
   const [iosInstallOpen, setIosInstallOpen] = useState(false);
   const [androidInstallOpen, setAndroidInstallOpen] = useState(false);
-  const [hasInstallPrompt, setHasInstallPrompt] = useState(false);
+  const [hasInstallPrompt, setHasInstallPrompt] = useState(() => Boolean(getCapturedInstallPrompt()));
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [installDebug, setInstallDebug] = useState({
-    promptEventSeen: false,
+    promptEventSeen: Boolean(window.__diguInstallPromptSeen || getCapturedInstallPrompt()),
     appInstalled: false,
     swSupported: false,
     swRegistered: false,
@@ -157,15 +158,31 @@ export default function Lobby({ socket, onJoined }) {
   }, [scannerOpen]);
 
   useEffect(() => {
+    const syncCapturedInstallPrompt = () => {
+      const capturedPrompt = getCapturedInstallPrompt();
+      if (!capturedPrompt) return;
+
+      deferredInstallPromptRef.current = capturedPrompt;
+      setHasInstallPrompt(true);
+      setInstallDebug((current) => ({ ...current, promptEventSeen: true }));
+    };
+
     const handleBeforeInstallPrompt = (event) => {
       event.preventDefault();
+      window.__diguInstallPrompt = event;
+      window.__diguInstallPromptSeen = true;
       deferredInstallPromptRef.current = event;
       setHasInstallPrompt(true);
       setInstallDebug((current) => ({ ...current, promptEventSeen: true }));
     };
 
+    syncCapturedInstallPrompt();
+    window.addEventListener('digu-beforeinstallprompt', syncCapturedInstallPrompt);
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => {
+      window.removeEventListener('digu-beforeinstallprompt', syncCapturedInstallPrompt);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
   }, []);
 
   useEffect(() => {
@@ -192,7 +209,7 @@ export default function Lobby({ socket, onJoined }) {
       return;
     }
 
-    const promptEvent = deferredInstallPromptRef.current;
+    const promptEvent = deferredInstallPromptRef.current || getCapturedInstallPrompt();
     if (!promptEvent) {
       if (isAndroid) setAndroidInstallOpen(true);
       return;
@@ -203,6 +220,8 @@ export default function Lobby({ socket, onJoined }) {
       await promptEvent.userChoice;
     } finally {
       deferredInstallPromptRef.current = null;
+      window.__diguInstallPrompt = null;
+      window.__diguInstallPromptSeen = false;
       setHasInstallPrompt(false);
       setInstallDismissed(true);
     }

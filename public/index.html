@@ -16,6 +16,20 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+      window.__diguInstallPrompt = null;
+      window.__diguInstallPromptSeen = false;
+      window.addEventListener('beforeinstallprompt', function (event) {
+        event.preventDefault();
+        window.__diguInstallPrompt = event;
+        window.__diguInstallPromptSeen = true;
+        window.dispatchEvent(new Event('digu-beforeinstallprompt'));
+      });
+      window.addEventListener('appinstalled', function () {
+        window.__diguInstallPrompt = null;
+        window.__diguInstallPromptSeen = false;
+      });
+    </script>
     <script defer src="%PUBLIC_URL%/registerSW.js"></script>
   </head>
   <body>
