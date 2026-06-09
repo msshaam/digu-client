@@ -36,26 +36,3 @@ window.addEventListener('unhandledrejection', (event) => {
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<React.StrictMode><App /></React.StrictMode>);
-
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    if (process.env.NODE_ENV === 'production' && window.isSecureContext) {
-      try {
-        navigator.serviceWorker.register('/service-worker.js').catch(() => {});
-      } catch (error) {
-        // Ignore unsupported or blocked service worker registration.
-      }
-      return;
-    }
-
-    if (window.isSecureContext) {
-      try {
-        navigator.serviceWorker.getRegistrations()
-          .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
-          .catch(() => {});
-      } catch (error) {
-        // Ignore unsupported or blocked service worker access.
-      }
-    }
-  });
-}

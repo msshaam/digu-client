@@ -1,5 +1,5 @@
 const CACHE_NAME = 'digu-static-v1';
-const STATIC_PATHS = ['/', '/index.html', '/manifest.json', '/app-icon-192.png', '/app-icon-512.png'];
+const STATIC_PATHS = ['/', '/index.html', '/manifest.webmanifest', '/registerSW.js', '/app-icon-192.png', '/app-icon-512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
