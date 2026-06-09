@@ -22,6 +22,16 @@ export default function Lobby({ socket, onJoined }) {
   const [androidInstallOpen, setAndroidInstallOpen] = useState(false);
   const [hasInstallPrompt, setHasInstallPrompt] = useState(false);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const [installDebug, setInstallDebug] = useState({
+    promptEventSeen: false,
+    appInstalled: false,
+    swSupported: false,
+    swRegistered: false,
+    swControllingPage: false,
+    secureContext: false,
+    standalone: false,
+    platform: '',
+  });
   const scannerRef = useRef(null);
   const scannerRegionId = 'digu-qr-scanner';
   const deferredInstallPromptRef = useRef(null);
@@ -31,6 +41,66 @@ export default function Lobby({ socket, onJoined }) {
   const isAndroid = /android/i.test(window.navigator.userAgent);
   const isSafari = /^((?!chrome|android).)*safari/i.test(window.navigator.userAgent);
   const canShowIosInstall = isIos && isSafari && !isStandalone;
+  const locationIsSecure = window.location.protocol === 'https:' || ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const platform = [
+      isAndroid ? 'ANDROID' : null,
+      isIos ? 'IOS' : null,
+      /brave/i.test(window.navigator.userAgent) ? 'BRAVE' : null,
+      /chrome/i.test(window.navigator.userAgent) && !/edg/i.test(window.navigator.userAgent) ? 'CHROME' : null,
+      isSafari ? 'SAFARI' : null,
+    ].filter(Boolean).join(' / ') || 'UNKNOWN';
+
+    const updateInstallDebug = async (patch = {}) => {
+      const swSupported = 'serviceWorker' in navigator;
+      let swRegistered = false;
+      let swControllingPage = Boolean(navigator.serviceWorker?.controller);
+
+      if (swSupported) {
+        try {
+          const registration = await navigator.serviceWorker.getRegistration();
+          swRegistered = Boolean(registration);
+        } catch (error) {
+          swRegistered = false;
+        }
+      }
+
+      if (cancelled) return;
+
+      setInstallDebug((current) => ({
+        ...current,
+        swSupported,
+        swRegistered,
+        swControllingPage,
+        secureContext: locationIsSecure,
+        standalone: Boolean(window.matchMedia?.('(display-mode: standalone)')?.matches || window.navigator.standalone),
+        platform,
+        ...patch,
+      }));
+    };
+
+    updateInstallDebug();
+
+    const refresh = () => updateInstallDebug();
+    const markInstalled = () => updateInstallDebug({ appInstalled: true });
+
+    window.addEventListener('load', refresh);
+    window.addEventListener('appinstalled', markInstalled);
+    navigator.serviceWorker?.addEventListener?.('controllerchange', refresh);
+    navigator.serviceWorker?.ready?.then(refresh).catch(() => {});
+    const timeoutId = window.setTimeout(refresh, 2000);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener('load', refresh);
+      window.removeEventListener('appinstalled', markInstalled);
+      navigator.serviceWorker?.removeEventListener?.('controllerchange', refresh);
+      window.clearTimeout(timeoutId);
+    };
+  }, [isAndroid, isIos, isSafari, locationIsSecure]);
 
   useEffect(() => {
     if (!scannerOpen) return undefined;
@@ -91,6 +161,7 @@ export default function Lobby({ socket, onJoined }) {
       event.preventDefault();
       deferredInstallPromptRef.current = event;
       setHasInstallPrompt(true);
+      setInstallDebug((current) => ({ ...current, promptEventSeen: true }));
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -200,6 +271,17 @@ export default function Lobby({ socket, onJoined }) {
     width: '100%',
     cursor: 'pointer',
   };
+
+  const debugRows = [
+    ['Platform', installDebug.platform],
+    ['Prompt event', installDebug.promptEventSeen ? 'YES' : 'NO'],
+    ['Secure context', installDebug.secureContext ? 'YES' : 'NO'],
+    ['Standalone', installDebug.standalone ? 'YES' : 'NO'],
+    ['SW supported', installDebug.swSupported ? 'YES' : 'NO'],
+    ['SW registered', installDebug.swRegistered ? 'YES' : 'NO'],
+    ['SW controlling', installDebug.swControllingPage ? 'YES' : 'NO'],
+    ['App installed', installDebug.appInstalled ? 'YES' : 'NO'],
+  ];
 
   return (
     <div style={{
@@ -313,6 +395,28 @@ export default function Lobby({ socket, onJoined }) {
             </button>
           </div>
         )}
+
+        <div
+          style={{
+            marginTop: 18,
+            background: 'rgba(13,21,32,0.92)',
+            border: '1px solid #1e2d45',
+            borderRadius: 16,
+            padding: 16,
+          }}
+        >
+          <div style={{ color: '#c9a84c', fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', marginBottom: 10 }}>
+            PWA Debug
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '8px 12px', alignItems: 'center' }}>
+            {debugRows.map(([label, value]) => (
+              <React.Fragment key={label}>
+                <div style={{ color: '#8a9bb5', fontSize: 11, letterSpacing: '0.06em' }}>{label}</div>
+                <div style={{ color: '#e8e0d4', fontSize: 11, fontWeight: 700, textAlign: 'right' }}>{value}</div>
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
 
       </div>
       {scannerOpen && (

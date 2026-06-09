@@ -3,9 +3,11 @@
 
   var host = window.location.hostname;
   var isLocalhost = host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+  var isHttps = window.location.protocol === 'https:';
+  var canRegister = isHttps || isLocalhost;
 
   window.addEventListener('load', function () {
-    if (!window.isSecureContext || isLocalhost) {
+    if (!canRegister) {
       try {
         navigator.serviceWorker.getRegistrations()
           .then(function (registrations) {
