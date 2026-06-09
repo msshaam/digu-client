@@ -23,22 +23,22 @@
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Manrope', sans-serif;
   min-height: 100vh;
   overflow-x: hidden;
 }
 
-h1, h2, h3 { font-family: 'Playfair Display', serif; }
+h1, h2, h3 { font-family: 'Manrope', sans-serif; }
 
 button {
   cursor: pointer;
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Manrope', sans-serif;
   border: none;
   outline: none;
 }
 
 input {
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Manrope', sans-serif;
   outline: none;
 }
 

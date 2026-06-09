@@ -5,7 +5,7 @@ import WaitingRoom from './components/WaitingRoom';
 import GameBoard from './components/GameBoard';
 import RoundEnd from './components/RoundEnd';
 
-const SERVER_URL = process.env.REACT_APP_SERVER_URL || '';
+const SERVER_URL = process.env.REACT_APP_SERVER_URL || `${window.location.protocol}//${window.location.hostname}:3001`;
 
 export default function App() {
   const socketRef = useRef(null);
@@ -62,6 +62,12 @@ export default function App() {
       setGameState(state);
     });
 
+    socket.on('roomClosed', () => {
+      localStorage.removeItem('digu_session');
+      setSession(null);
+      setGameState(null);
+    });
+
     return () => socket.disconnect();
   }, []);
 
@@ -91,6 +97,7 @@ export default function App() {
         color: '#8a9bb5',
         flexDirection: 'column',
         gap: 16,
+        textTransform: 'uppercase',
       }}>
         <div style={{ fontSize: 40 }}>🃏</div>
         <p style={{ fontSize: 14, animation: 'pulse 1.5s infinite' }}>
@@ -105,7 +112,7 @@ export default function App() {
               border: '1px solid #1e2d45',
               color: '#3a4a65',
               padding: '8px 20px',
-              borderRadius: 8,
+              borderRadius: 999,
               fontSize: 13,
               cursor: 'pointer',
             }}
@@ -125,7 +132,7 @@ export default function App() {
     return (
       <div style={{
         minHeight: '100vh', display: 'flex', alignItems: 'center',
-        justifyContent: 'center', background: '#0a0f1e', color: '#8a9bb5',
+        justifyContent: 'center', background: '#0a0f1e', color: '#8a9bb5', textTransform: 'uppercase',
       }}>
         Loading game...
       </div>
@@ -138,9 +145,9 @@ export default function App() {
     return <WaitingRoom gameState={gameState} socket={socket} roomCode={roomCode} playerId={playerId} playerName={playerName} onLeave={handleLeaveRoom} />;
   }
 
-  if (gameState.status === 'roundEnd') {
-    return <RoundEnd gameState={gameState} socket={socket} roomCode={roomCode} playerId={playerId} />;
+  if (gameState.status === 'roundEnd' || gameState.status === 'interrupted') {
+    return <RoundEnd gameState={gameState} socket={socket} roomCode={roomCode} playerId={playerId} onBackHome={handleLeaveRoom} />;
   }
 
-  return <GameBoard gameState={gameState} socket={socket} roomCode={roomCode} playerId={playerId} />;
+  return <GameBoard gameState={gameState} socket={socket} roomCode={roomCode} playerId={playerId} onLeaveConfirmed={handleLeaveRoom} />;
 }
