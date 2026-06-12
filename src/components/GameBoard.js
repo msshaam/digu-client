@@ -21,6 +21,10 @@ function playerLabel(name, isYou = false) {
   return `${String(name || '').toUpperCase()}${isYou ? ' (YOU)' : ''}`;
 }
 
+function playerScoreLabel(player, isYou = false) {
+  return `${playerLabel(player?.name, isYou)} - ${player?.score || 0}`;
+}
+
 function orderCardsByIds(cards, ids) {
   const cardMap = new Map(cards.map(card => [card.id, card]));
   const ordered = ids.map(id => cardMap.get(id)).filter(Boolean);
@@ -81,15 +85,61 @@ function getHandSlotIndex(pointerX, total, containerWidth, containerLeft = 0) {
 // Scaled card face-down
 function FaceDownCard({ width }) {
   const h = Math.round(width * 1.4);
+  const pad = Math.round(width * 0.08);
+  const navy = '#17256c';
+  const cream = '#f8f4ec';
   return (
     <div style={{
       width, height: h, borderRadius: Math.round(width * 0.13),
-      background: 'linear-gradient(135deg, #1a2a4a 0%, #0d1b33 100%)',
-      border: `2px solid #2a3f6a`,
+      background: cream,
+      border: `2px solid ${navy}`,
+      boxShadow: '0 8px 22px rgba(0,0,0,0.34)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: Math.round(width * 0.35), color: '#2a3f6a',
       flexShrink: 0,
-    }}>✦</div>
+      position: 'relative',
+      overflow: 'hidden',
+      padding: pad,
+    }}>
+      <div style={{
+        position: 'absolute',
+        inset: pad,
+        border: `${Math.max(1, Math.round(width * 0.025))}px solid ${navy}`,
+        borderRadius: Math.round(width * 0.08),
+        background: `
+          linear-gradient(45deg, transparent 42%, ${cream} 43%, ${cream} 57%, transparent 58%) 0 0 / ${Math.round(width * 0.18)}px ${Math.round(width * 0.18)}px,
+          linear-gradient(-45deg, transparent 42%, ${cream} 43%, ${cream} 57%, transparent 58%) 0 0 / ${Math.round(width * 0.18)}px ${Math.round(width * 0.18)}px,
+          ${navy}
+        `,
+      }} />
+      <div style={{
+        position: 'absolute',
+        inset: Math.round(width * 0.17),
+        background: cream,
+        borderRadius: Math.round(width * 0.05),
+        border: `${Math.max(1, Math.round(width * 0.018))}px solid ${navy}`,
+      }} />
+      <svg
+        viewBox="0 0 100 140"
+        aria-hidden="true"
+        focusable="false"
+        style={{ position: 'absolute', inset: pad + Math.round(width * 0.08), width: `calc(100% - ${2 * (pad + Math.round(width * 0.08))}px)`, height: `calc(100% - ${2 * (pad + Math.round(width * 0.08))}px)` }}
+      >
+        <rect x="6" y="6" width="88" height="128" rx="5" fill={navy} />
+        <rect x="12" y="12" width="76" height="116" rx="3" fill={cream} />
+        <g fill={navy}>
+          <path d="M50 30 C35 12 18 22 22 42 C24 54 36 60 50 72 C64 60 76 54 78 42 C82 22 65 12 50 30Z" />
+          <path d="M50 110 C35 128 18 118 22 98 C24 86 36 80 50 68 C64 80 76 86 78 98 C82 118 65 128 50 110Z" />
+          <path d="M28 70 C16 56 18 38 36 30 C29 43 34 56 50 70 C34 84 29 97 36 110 C18 102 16 84 28 70Z" />
+          <path d="M72 70 C84 56 82 38 64 30 C71 43 66 56 50 70 C66 84 71 97 64 110 C82 102 84 84 72 70Z" />
+          <path d="M50 44 C56 55 66 62 79 65 C66 68 56 75 50 96 C44 75 34 68 21 65 C34 62 44 55 50 44Z" />
+          <circle cx="50" cy="70" r="9" fill={cream} />
+          <circle cx="50" cy="70" r="5" fill={navy} />
+          <circle cx="50" cy="70" r="2" fill={cream} />
+          <path d="M18 18 H82 V24 H18Z M18 116 H82 V122 H18Z" />
+          <path d="M18 28 H24 V112 H18Z M76 28 H82 V112 H76Z" />
+        </g>
+      </svg>
+    </div>
   );
 }
 
@@ -163,6 +213,11 @@ function HandCardShell({ card, index, total, arcWidth, selected, isNew, highligh
 
 function ScoreTableModal({ players, scoreHistory, playerId, onClose }) {
   const rows = scoreHistory || [];
+  const highestTotal = Math.max(...players.map(p => p.score || 0), 0);
+  const diguCounts = players.reduce((counts, player) => {
+    counts[player.playerId] = rows.filter(row => row.winnerPlayerId === player.playerId).length;
+    return counts;
+  }, {});
 
   return (
     <ModalShell onClose={onClose} maxWidth={520} panelStyle={{ borderRadius: 20, padding: 16 }}>
@@ -199,6 +254,9 @@ function ScoreTableModal({ players, scoreHistory, playerId, onClose }) {
                 {players.map(p => (
                   <th key={`${p.playerId}-total`} style={{ color: '#c9a84c', fontSize: 18, fontWeight: 900, padding: '10px 6px', borderBottom: '1px solid #1e2d45', textAlign: 'center' }}>
                     {p.score || 0}
+                    {highestTotal > 0 && (p.score || 0) === highestTotal && (
+                      <span style={{ marginLeft: 4 }}>👑</span>
+                    )}
                   </th>
                 ))}
               </tr>
@@ -213,9 +271,11 @@ function ScoreTableModal({ players, scoreHistory, playerId, onClose }) {
                     {players.map(p => {
                       const score = row.scores?.find(s => s.playerId === p.playerId);
                       const value = score?.netScore;
+                      const calledDigu = row.winnerPlayerId === p.playerId;
                       return (
                         <td key={`${row.roundNumber}-${p.playerId}`} style={{ padding: '9px 6px', color: value >= 0 ? '#4caf88' : '#e05252', borderBottom: '1px solid #1a2235', textAlign: 'center', fontWeight: 700 }}>
                           {value === undefined ? '-' : `${value >= 0 ? '+' : ''}${value}`}
+                          {calledDigu && <span style={{ marginLeft: 4, color: '#c9a84c' }}>⭐</span>}
                         </td>
                       );
                     })}
@@ -223,6 +283,18 @@ function ScoreTableModal({ players, scoreHistory, playerId, onClose }) {
                 ))}
               </tbody>
             )}
+            <tfoot>
+              <tr>
+                <th style={{ color: '#8a9bb5', fontSize: 12, fontWeight: 900, padding: '11px 6px 6px', borderTop: '1px solid #1e2d45', textAlign: 'left', whiteSpace: 'nowrap' }}>
+                  Total Digu
+                </th>
+                {players.map(p => (
+                  <th key={`${p.playerId}-digu-total`} style={{ color: '#c9a84c', fontSize: 15, fontWeight: 900, padding: '11px 6px 6px', borderTop: '1px solid #1e2d45', textAlign: 'center' }}>
+                    {diguCounts[p.playerId] || 0}
+                  </th>
+                ))}
+              </tr>
+            </tfoot>
           </table>
         </div>
 
@@ -246,9 +318,22 @@ export default function GameBoard({ gameState, socket, roomCode, playerId, onLea
   const [activeDragId, setActiveDragId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
   const [dragPointer, setDragPointer] = useState(null);
+  const [useTouchControls, setUseTouchControls] = useState(false);
+  const [flyCard, setFlyCard] = useState(null);
   const arcRef = useRef(null);
+  const deckRef = useRef(null);
+  const discardRef = useRef(null);
   const dragSessionRef = useRef(null);
+  const lastActionIdRef = useRef(null);
   const [arcWidth, setArcWidth] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const media = window.matchMedia?.('(hover: none), (pointer: coarse)');
+    const update = () => setUseTouchControls(Boolean(media?.matches));
+    update();
+    media?.addEventListener?.('change', update);
+    return () => media?.removeEventListener?.('change', update);
+  }, []);
 
   useEffect(() => {
     const update = () => {
@@ -276,9 +361,51 @@ export default function GameBoard({ gameState, socket, roomCode, playerId, onLea
   const canDrawDiscard = isMyTurn && turnPhase === 'draw' && !loading && Boolean(topDiscard);
   const drawnCard = gameState?.drawnCard;
   const drawnCardSource = gameState?.drawnCardSource;
+  const isOpeningDiscard = drawnCardSource === 'opening';
   const disconnectVote = gameState?.disconnectVote;
   const serverCards = drawnCard ? [...myHand, drawnCard] : myHand;
   const handOrderStorageKey = `digu_hand_order_${roomCode}_${playerId}`;
+
+  const getElementCenter = useCallback((ref, fallbackX, fallbackY) => {
+    const rect = ref.current?.getBoundingClientRect();
+    if (!rect) return { x: fallbackX, y: fallbackY };
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  }, []);
+
+  const getHandCardCenter = useCallback((cardId, cards = handOrder) => {
+    const rect = arcRef.current?.getBoundingClientRect();
+    const index = cards.findIndex(card => card.id === cardId);
+    if (!rect || index === -1) return { x: window.innerWidth / 2, y: window.innerHeight - 110 };
+
+    const layout = getArcLayout(index, cards.length, false, rect.width);
+    const xMatch = /translateX\((-?\d+(?:\.\d+)?)px\)/.exec(layout.positionTransform || '');
+    const yMatch = /translateY\((-?\d+(?:\.\d+)?)px\)/.exec(layout.positionTransform || '');
+    const xOffset = xMatch ? Number(xMatch[1]) : 0;
+    const yOffset = yMatch ? Number(yMatch[1]) : 0;
+    const cardW = 64;
+    const cardH = 90;
+
+    return {
+      x: rect.left + rect.width / 2 + xOffset + cardW / 2,
+      y: rect.bottom - 26 + yOffset - cardH / 2,
+    };
+  }, [handOrder]);
+
+  const animateCardMotion = useCallback(({ card, faceDown = false, from, to, duration = 420 }) => {
+    setFlyCard({ card, faceDown, from, to, createdAt: Date.now() });
+    window.setTimeout(() => {
+      setFlyCard(current => (current?.from === from && current?.to === to ? null : current));
+    }, duration);
+  }, []);
+
+  const doAction = useCallback((emitEvent, payload, cb) => {
+    setLoading(true);
+    socket.emit(emitEvent, { roomCode, ...payload }, (res) => {
+      setLoading(false);
+      if (!res.success) setError(res.error);
+      else { setError(''); if (cb) cb(res); }
+    });
+  }, [roomCode, socket]);
 
   useEffect(() => {
     if (serverCards.length === 0) { setHandOrder([]); return; }
@@ -324,6 +451,49 @@ export default function GameBoard({ gameState, socket, roomCode, playerId, onLea
     });
     return highlights;
   })();
+
+  useEffect(() => {
+    const action = gameState?.lastAction;
+    if (!action?.id || action.id === lastActionIdRef.current) return;
+    lastActionIdRef.current = action.id;
+
+    const tableCenter = { x: window.innerWidth / 2, y: Math.max(120, window.innerHeight * 0.32) };
+    const deckCenter = getElementCenter(deckRef, window.innerWidth * 0.25, tableCenter.y);
+    const discardCenter = getElementCenter(discardRef, window.innerWidth * 0.75, tableCenter.y);
+    const sideTarget = action.source === 'discard'
+      ? { x: window.innerWidth - 42, y: tableCenter.y }
+      : { x: 42, y: tableCenter.y };
+
+    if (action.type === 'draw') {
+      const isActor = action.playerId === playerId;
+      const from = action.source === 'discard' ? discardCenter : deckCenter;
+      const drawTargetHand = isActor && drawnCard && !displayHand.some(card => card.id === drawnCard.id)
+        ? [...displayHand, drawnCard]
+        : displayHand;
+      const to = isActor && drawnCard
+        ? getHandCardCenter(drawnCard.id, drawTargetHand)
+        : sideTarget;
+      animateCardMotion({
+        card: isActor ? drawnCard : action.card,
+        faceDown: action.source === 'deck' || !action.card,
+        from,
+        to,
+      });
+    }
+
+    if (action.type === 'discard' || action.type === 'putBack') {
+      const from = action.playerId === playerId && action.card
+        ? getHandCardCenter(action.card.id, [...displayHand, action.card])
+        : sideTarget;
+      const discardTarget = action.destination === 'deck' ? deckCenter : discardCenter;
+      animateCardMotion({
+        card: action.card,
+        faceDown: action.destination === 'deck',
+        from,
+        to: discardTarget,
+      });
+    }
+  }, [animateCardMotion, displayHand, drawnCard, gameState?.lastAction, getElementCenter, getHandCardCenter, playerId]);
 
   const updateDragPreview = useCallback((clientX, clientY) => {
     if (!arcRef.current) return;
@@ -375,9 +545,32 @@ export default function GameBoard({ gameState, socket, roomCode, playerId, onLea
       event.preventDefault();
       const finalOverId = dragOverId;
       const activeId = session.cardId;
+      const rect = arcRef.current?.getBoundingClientRect();
+      const thrownTowardTable = Boolean(rect)
+        && isMyTurn
+        && turnPhase === 'discard'
+        && (session.startY - event.clientY > 80 || event.clientY < rect.top + rect.height * 0.3);
       setActiveDragId(null);
       setDragOverId(null);
       setDragPointer(null);
+
+      if (thrownTowardTable) {
+        const from = { x: event.clientX, y: event.clientY };
+        const shouldReturnToDeck = players.length === 5 && drawnCardSource === 'deck';
+        const targetRef = shouldReturnToDeck ? deckRef : discardRef;
+        const targetX = shouldReturnToDeck ? window.innerWidth * 0.25 : window.innerWidth * 0.75;
+        const to = getElementCenter(targetRef, targetX, Math.max(120, window.innerHeight * 0.32));
+        const thrownCard = handOrder.find(card => card.id === activeId);
+
+        if (drawnCardSource === 'discard' && drawnCard?.id === activeId) {
+          animateCardMotion({ card: thrownCard || drawnCard, from, to, faceDown: false });
+          doAction('putBackDiscard', {});
+        } else {
+          animateCardMotion({ card: thrownCard, from, to, faceDown: shouldReturnToDeck });
+          doAction('discardCard', { cardId: activeId, isDiguDiscard: false });
+        }
+        return;
+      }
 
       if (!finalOverId || activeId === finalOverId) return;
       setHandOrder(prev => {
@@ -396,7 +589,7 @@ export default function GameBoard({ gameState, socket, roomCode, playerId, onLea
       window.removeEventListener('pointerup', handleEnd);
       window.removeEventListener('pointercancel', handleEnd);
     };
-  }, [dragOverId, isMyTurn, turnPhase, updateDragPreview]);
+  }, [animateCardMotion, doAction, dragOverId, drawnCard, drawnCardSource, getElementCenter, handOrder, isMyTurn, players.length, turnPhase, updateDragPreview]);
 
   useEffect(() => {
     if (arcRef.current) setArcWidth(arcRef.current.offsetWidth);
@@ -404,6 +597,7 @@ export default function GameBoard({ gameState, socket, roomCode, playerId, onLea
 
   const diguPossible = (() => {
     if (!isMyTurn || turnPhase !== 'discard') return false;
+    if (isOpeningDiscard) return false;
     if (selectedCard) {
       return Boolean(findArrangedDiguGroups(displayHand.filter(c => c.id !== selectedCard)));
     }
@@ -411,15 +605,6 @@ export default function GameBoard({ gameState, socket, roomCode, playerId, onLea
   })();
 
   useEffect(() => { setSelectedCard(null); setError(''); }, [gameState?.currentTurn, turnPhase]);
-
-  const doAction = (emitEvent, payload, cb) => {
-    setLoading(true);
-    socket.emit(emitEvent, { roomCode, ...payload }, (res) => {
-      setLoading(false);
-      if (!res.success) setError(res.error);
-      else { setError(''); if (cb) cb(res); }
-    });
-  };
 
   const handleLeave = () => {
     setConfirmType('leave');
@@ -562,7 +747,7 @@ export default function GameBoard({ gameState, socket, roomCode, playerId, onLea
                   gap: 6,
                 }}>
                   <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {playerLabel(p.name, isYou)}
+                    {playerScoreLabel(p, isYou)}
                   </span>
                   {!p.connected && <OfflineIcon />}
                 </div>
@@ -581,6 +766,8 @@ export default function GameBoard({ gameState, socket, roomCode, playerId, onLea
       }}>
         {/* Deck */}
         <div
+          ref={deckRef}
+          className="tap-clean"
           onClick={canDrawDeck ? handleDrawDeck : undefined}
           style={{
             flex: 1, display: 'flex', flexDirection: 'column',
@@ -611,6 +798,8 @@ export default function GameBoard({ gameState, socket, roomCode, playerId, onLea
 
         {/* Discard */}
         <div
+          ref={discardRef}
+          className="tap-clean"
           onClick={canDrawDiscard ? handleDrawDiscard : undefined}
           style={{
             flex: 1, display: 'flex', flexDirection: 'column',
@@ -646,10 +835,17 @@ export default function GameBoard({ gameState, socket, roomCode, playerId, onLea
         textAlign: 'center', padding: '6px 12px', flexShrink: 0,
         background: isMyTurn ? 'rgba(201,168,76,0.08)' : 'transparent',
         borderRadius: 999, border: isMyTurn ? '1px solid rgba(201,168,76,0.2)' : '1px solid transparent',
+        animation: isMyTurn ? 'glow 2s infinite' : undefined,
       }}>
         {isMyTurn
           ? <span style={{ color: '#c9a84c', fontWeight: 600, fontSize: 12 }}>
-              {turnPhase === 'draw' ? 'Your turn — draw a card' : 'Tap a card to select, then Discard or Digu'}
+              {turnPhase === 'draw'
+                ? 'Your Turn - Draw A Card'
+                : isOpeningDiscard
+                  ? 'Your Turn - Discard The Extra Card'
+                  : useTouchControls
+                    ? 'Your Turn - Throw A Card Or Digu'
+                    : 'Tap A Card To Select, Then Discard Or Digu'}
             </span>
           : <span style={{ color: '#8a9bb5', fontSize: 12 }}>{playerLabel(currentPlayer?.name)}'s turn...</span>
         }
@@ -665,10 +861,14 @@ export default function GameBoard({ gameState, socket, roomCode, playerId, onLea
           border: '1px solid rgba(224,82,82,0.35)',
           borderRadius: 10,
           padding: 10,
+          marginTop: 8,
           flexShrink: 0,
         }}>
-          <div style={{ color: '#e8e0d4', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
-            {disconnectVote.disconnectedPlayers.map(p => playerLabel(p.name)).join(', ')} disconnected for 5+ minutes.
+          <div style={{ color: '#e8e0d4', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
+            {disconnectVote.disconnectedPlayers.map(p => playerLabel(p.name)).join(', ')} HAS BEEN DISCONNECTED FOR MORE THAN 5 MINUTES.
+          </div>
+          <div style={{ color: '#8a9bb5', fontSize: 11, fontWeight: 600, marginBottom: 8 }}>
+            DO YOU WANT TO END THE GAME? {disconnectVote.mode === 'vote' ? `${disconnectVote.votedCount || 0}/${disconnectVote.totalVoters || disconnectVote.connectedCount || 0} VOTED` : ''}
           </div>
           {disconnectVote.mode === 'vote' ? (
             <div style={{ display: 'flex', gap: 8 }}>
@@ -681,8 +881,9 @@ export default function GameBoard({ gameState, socket, roomCode, playerId, onLea
                 color: '#0a0f1e',
                 fontWeight: 700,
                 fontSize: 12,
+                boxShadow: disconnectVote.myVote === 'yes' ? '0 0 0 2px rgba(232,224,212,0.35) inset' : undefined,
               }}>
-                End Game ({disconnectVote.yesVotes}/{disconnectVote.threshold})
+                YES ({disconnectVote.yesVotes || 0})
               </button>
               <button onClick={() => doAction('voteEndGame', { vote: 'no' })} disabled={loading} style={{
                 flex: 1,
@@ -693,8 +894,9 @@ export default function GameBoard({ gameState, socket, roomCode, playerId, onLea
                 color: '#8a9bb5',
                 fontWeight: 600,
                 fontSize: 12,
+                boxShadow: disconnectVote.myVote === 'no' ? '0 0 0 2px rgba(232,224,212,0.28) inset' : undefined,
               }}>
-                Keep Waiting
+                NO ({disconnectVote.noVotes || 0})
               </button>
             </div>
           ) : (
@@ -708,7 +910,7 @@ export default function GameBoard({ gameState, socket, roomCode, playerId, onLea
               fontWeight: 700,
               fontSize: 12,
             }}>
-              End and go back to Home
+              END AND GO BACK TO HOME
             </button>
           )}
         </div>
@@ -724,11 +926,11 @@ export default function GameBoard({ gameState, socket, roomCode, playerId, onLea
         <div ref={arcRef} style={{
           position: 'relative',
           height: 190,
-          marginBottom: isMyTurn && turnPhase === 'discard' ? 14 : 0,
+          marginBottom: !useTouchControls && isMyTurn && turnPhase === 'discard' ? 14 : 0,
           display: 'flex',
           alignItems: 'flex-end',
           justifyContent: 'center',
-          paddingBottom: 26,
+          paddingBottom: useTouchControls && isMyTurn && turnPhase === 'discard' && diguPossible ? 46 : 26,
           overflowX: 'hidden',
           overflow: 'hidden',
           userSelect: 'none',
@@ -777,7 +979,23 @@ export default function GameBoard({ gameState, socket, roomCode, playerId, onLea
         </div>
 
         {/* Action buttons */}
-        {isMyTurn && turnPhase === 'discard' && (
+        {useTouchControls && isMyTurn && turnPhase === 'discard' && diguPossible && (
+          <div style={{ paddingBottom: 8, flexShrink: 0 }} className="slide-up">
+            <button onClick={handleDigu} disabled={loading} style={{
+              width: '100%',
+              padding: '12px',
+              background: 'linear-gradient(135deg, #c9a84c, #e8c96a)',
+              border: 'none',
+              color: '#0a0f1e',
+              fontWeight: 800,
+              fontSize: 14,
+              ...pillButton,
+              letterSpacing: '0.05em',
+              animation: 'glow 1.5s infinite',
+            }}>DIGU!</button>
+          </div>
+        )}
+        {!useTouchControls && isMyTurn && turnPhase === 'discard' && (
           <div style={{ display: 'flex', gap: 8, paddingBottom: 8, flexShrink: 0 }} className="slide-up">
             <button onClick={handleDiscard} disabled={!selectedCard || loading} style={{
               flex: 1, padding: '12px',
@@ -805,12 +1023,31 @@ export default function GameBoard({ gameState, socket, roomCode, playerId, onLea
                 border: 'none', color: '#0a0f1e',
                 fontWeight: 700, fontSize: 14, ...pillButton,
                 letterSpacing: '0.05em', animation: 'glow 1.5s infinite',
-              }}>🎴 Digu!</button>
+              }}>DIGU!</button>
             )}
           </div>
         )}
         {(!isMyTurn || turnPhase === 'draw') && <div style={{ height: 8 }} />}
       </div>
+
+      {flyCard && (
+        <div style={{
+          position: 'fixed',
+          left: flyCard.from.x,
+          top: flyCard.from.y,
+          transform: 'translate(-50%, -50%)',
+          pointerEvents: 'none',
+          zIndex: 5000,
+          animation: 'flyCard 0.42s cubic-bezier(0.22, 0.78, 0.28, 1) forwards',
+          '--fly-x': `${flyCard.to.x - flyCard.from.x}px`,
+          '--fly-y': `${flyCard.to.y - flyCard.from.y}px`,
+        }}>
+          {flyCard.faceDown
+            ? <FaceDownCard width={54} />
+            : flyCard.card && <Card card={flyCard.card} />
+          }
+        </div>
+      )}
 
       {scoresOpen && (
         <ScoreTableModal

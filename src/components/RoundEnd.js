@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import Card from './Card';
-import { AttentionIcon } from './Icons';
 
 const pillButton = { borderRadius: 999 };
 
@@ -13,10 +12,21 @@ export default function RoundEnd({ gameState, socket, roomCode, playerId, onBack
   const scores = gameState?.roundScores || [];
   const isInterrupted = gameState?.status === 'interrupted';
   const scoreRows = isInterrupted ? (gameState?.scoreSnapshot || []) : scores;
+  const scoreHistory = gameState?.scoreHistory || [];
+  const diguCounts = scoreRows.reduce((counts, row) => {
+    counts[row.playerId] = scoreHistory.filter(round => round.winnerPlayerId === row.playerId).length;
+    return counts;
+  }, {});
   const [error, setError] = useState('');
 
   const handleNextRound = () => {
     socket.emit('nextRound', { roomCode }, (res) => {
+      if (!res.success) setError(res.error);
+    });
+  };
+
+  const handleEndGame = () => {
+    socket.emit('endCurrentGame', { roomCode }, (res) => {
       if (!res.success) setError(res.error);
     });
   };
@@ -45,9 +55,11 @@ export default function RoundEnd({ gameState, socket, roomCode, playerId, onBack
       <div style={{ maxWidth: 520, margin: '0 auto' }} className="slide-up">
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{ fontSize: 48, marginBottom: 8, display: 'flex', justifyContent: 'center' }}>
-            {isInterrupted ? <AttentionIcon /> : '🎉'}
-          </div>
+          {!isInterrupted && (
+            <div style={{ fontSize: 48, marginBottom: 8, display: 'flex', justifyContent: 'center' }}>
+              🎉
+            </div>
+          )}
           <h2 style={{ fontSize: 28, fontWeight: 900, color: '#c9a84c' }}>
             {isInterrupted ? 'Game ended' : `${playerLabel(gameState.winnerName)} called Digu!`}
           </h2>
@@ -158,24 +170,31 @@ export default function RoundEnd({ gameState, socket, roomCode, playerId, onBack
           padding: '18px 20px',
           marginBottom: 24,
         }}>
-          <p style={{ color: '#8a9bb5', fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>
-            Cumulative Scores
-          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 72px 58px', gap: 10, alignItems: 'center', marginBottom: 10 }}>
+            <span />
+            <span style={{ color: '#8a9bb5', fontSize: 10, letterSpacing: '0.08em', textAlign: 'right', fontWeight: 800 }}>Score</span>
+            <span style={{ color: '#8a9bb5', fontSize: 10, letterSpacing: '0.08em', textAlign: 'right', fontWeight: 800 }}>Digu</span>
+          </div>
           {scoreRows
             .slice()
             .sort((a, b) => b.totalScore - a.totalScore)
             .map((s, i) => (
               <div key={s.playerId || s.playerName || i} style={{
-                display: 'flex',
-                justifyContent: 'space-between',
+                display: 'grid',
+                gridTemplateColumns: 'minmax(0, 1fr) 72px 58px',
+                gap: 10,
+                alignItems: 'center',
                 padding: '7px 0',
                 borderBottom: '1px solid #1a2235',
               }}>
-                <span style={{ color: s.playerId === playerId ? '#4caf88' : '#e8e0d4', fontSize: 14 }}>
+                <span style={{ color: s.playerId === playerId ? '#4caf88' : '#e8e0d4', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {playerLabel(s.playerName)}
                 </span>
-                <span style={{ fontWeight: 700, color: s.totalScore >= 0 ? '#e8e0d4' : '#e05252', fontFamily: "'Manrope', sans-serif" }}>
+                <span style={{ fontWeight: 700, color: s.totalScore >= 0 ? '#e8e0d4' : '#e05252', fontFamily: "'Manrope', sans-serif", textAlign: 'right' }}>
                   {s.totalScore}
+                </span>
+                <span style={{ fontWeight: 800, color: '#c9a84c', fontFamily: "'Manrope', sans-serif", textAlign: 'right' }}>
+                  {diguCounts[s.playerId] || 0}
                 </span>
               </div>
             ))}
@@ -217,6 +236,7 @@ export default function RoundEnd({ gameState, socket, roomCode, playerId, onBack
             </button>
           </div>
         ) : isHost ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <button
               onClick={handleNextRound}
               style={{
@@ -232,6 +252,23 @@ export default function RoundEnd({ gameState, socket, roomCode, playerId, onBack
             >
               Next Round
             </button>
+            <button
+              onClick={handleEndGame}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: 'transparent',
+                border: '1.5px solid rgba(224,82,82,0.38)',
+                color: '#e05252',
+                fontWeight: 700,
+                fontSize: 14,
+                ...pillButton,
+                letterSpacing: '0.03em',
+              }}
+            >
+              End Game
+            </button>
+          </div>
         ) : (
           <p style={{ textAlign: 'center', color: '#3a4a65', fontSize: 13 }}>
             Waiting for host to start next round...

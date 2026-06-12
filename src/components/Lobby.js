@@ -234,14 +234,20 @@ export default function Lobby({ socket, onJoined }) {
 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 48 }}>
-          <div style={{ fontSize: 64, marginBottom: 8 }}>🃏</div>
-          <h1 style={{ fontSize: 52, fontWeight: 900, color: '#c9a84c', letterSpacing: '-0.02em', lineHeight: 1 }}>
-            Digu
-          </h1>
+          <img
+            src="/digu-logo.png"
+            alt="Digu"
+            style={{
+              width: 'min(260px, 78vw)',
+              height: 'auto',
+              display: 'block',
+              margin: '0 auto',
+              filter: 'drop-shadow(0 18px 34px rgba(0,0,0,0.28))',
+            }}
+          />
           <p style={{ color: '#8a9bb5', marginTop: 8, fontSize: 14, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
             Gin Rummy — Maldives Edition
           </p>
-          <p style={{ color: '#3a4a65', marginTop: 6, fontSize: 11, letterSpacing: '0.08em' }}>v1.8</p>
         </div>
 
         {/* Mode: null — just two buttons */}
